@@ -1,7 +1,7 @@
 NAME	= irc_client
 
 CXX		= c++
-CXXFLAGS= -Wall -Wextra -Werror -std=c++98
+CXXFLAGS= -Wall -Wextra
 
 SRCS	= client.cpp
 OBJS	= $(SRCS:.cpp=.o)
@@ -9,7 +9,7 @@ OBJS	= $(SRCS:.cpp=.o)
 all: $(NAME)
 
 $(NAME): $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $(NAME) $(OBJS)
+	$(CXX) $(CXXFLAGS) -o $(NAME) $(OBJS) -lncurses
 
 clean:
 	rm -f $(OBJS)
