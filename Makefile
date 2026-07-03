@@ -1,7 +1,7 @@
 NAME	= irc_client
 
 CXX		= c++
-CXXFLAGS= -Wall -Wextra
+CXXFLAGS= -Wall -Wextra -g
 
 SRCS	= client.cpp
 OBJS	= $(SRCS:.cpp=.o)

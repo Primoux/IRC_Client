@@ -1,54 +1,77 @@
-#include <ncurses.h>
+#include <cstdio>
+#include <pthread.h>
+#include <sstream>
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <string>
-#include <vector>
 #include <cstring>
 #include <netdb.h>
 #include <algorithm>
-
-static WINDOW *g_msg;
-static WINDOW *g_bar;
-static WINDOW *g_inp;
-
-static void msg_push(const std::string &s)
-{
-	waddstr(g_msg, s.c_str());
-	wrefresh(g_msg);
-}
-
-static void bar_draw()
-{
-	werase(g_bar);
-	wattron(g_bar, A_REVERSE);
-	wprintw(g_bar, " [1]PRIVMSG  [2]JOIN  [3]PART  [4]NICK  [5]QUIT  [6]Raw ");
-	wattroff(g_bar, A_REVERSE);
-	wrefresh(g_bar);
-}
-
-static void inp_draw(const std::string &label, const std::string &buf)
-{
-	werase(g_inp);
-	mvwprintw(g_inp, 0, 0, "%s", label.c_str());
-	mvwprintw(g_inp, 1, 0, "> %s", buf.c_str());
-	wmove(g_inp, 1, 2 + (int)buf.size());
-	wrefresh(g_inp);
-}
+#include <fcntl.h>
+#include <iostream>
+#include <vector>
+#include <sys/wait.h>
 
 static void send_cmd(int fd, const std::string &cmd)
 {
 	send(fd, cmd.c_str(), cmd.size(), 0);
 }
 
+int is_alphabetic(const char *str)
+{
+	while (*str) {
+		if (*str < 'A' || (*str > 'Z' && *str < 'a') || *str > 'z')
+			return 0;
+		str++;
+	}
+	return 1;
+}
+
+bool random_bool(float probability)
+{
+	
+	float randomValue = static_cast<float>(rand() / (float)RAND_MAX);
+	std::cout << "Random value: " << randomValue << ", Probability: " << probability << std::endl;
+	bool outcome = randomValue < probability;
+
+	std::cout << "Outcome: " << outcome << std::endl;
+	return (outcome);
+}
+
+std::string random_string()
+{
+	int urandom = open("/dev/urandom", O_RDONLY);
+	char randomstr[9];
+	read(urandom, randomstr, 4);
+
+	while (!is_alphabetic(randomstr) || strlen(randomstr) < 4)
+		read(urandom, randomstr, 4);
+
+	randomstr[8] = '\0';
+	close(urandom);
+	return std::string(randomstr);
+}
+
 int main(int argc, char *argv[])
 {
+  /* initialize random seed: */
+  srand (time(NULL));
+
 	if (argc < 3) {
-		fprintf(stderr, "Usage: %s <host> <port>\n", argv[0]);
+		printf("Usage: %s <host> <port>\n", argv[0]);
 		return 1;
 	}
+
+int pid = getpid();
+	for (int i = 0; i < 5; ++i)
+		if (pid != 0)
+		{
+			usleep(rand() % 1000000);
+			pid = fork();
+		}
 
 	int fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (fd < 0) { perror("socket"); return 1; }
@@ -60,7 +83,7 @@ int main(int argc, char *argv[])
 
 	int st = getaddrinfo(argv[1], argv[2], &hints, &res);
 	if (st != 0) {
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(st));
+		printf("getaddrinfo: %s\n", gai_strerror(st));
 		return 1;
 	}
 	if (connect(fd, res->ai_addr, res->ai_addrlen) < 0) {
@@ -68,44 +91,78 @@ int main(int argc, char *argv[])
 	}
 	freeaddrinfo(res);
 
-	initscr();
-	noecho();
-	cbreak();
 
-	int rows, cols;
-	getmaxyx(stdscr, rows, cols);
 
-	g_msg = newwin(rows - 3, cols, 0, 0);
-	scrollok(g_msg, TRUE);
-	idlok(g_msg, TRUE);
-	wrefresh(g_msg);
+	std::vector<std::string> channels ;
 
-	g_bar = newwin(1, cols, rows - 3, 0);
-	g_inp = newwin(2, cols, rows - 2, 0);
-	keypad(g_inp, TRUE);
 
-	bar_draw();
+	/* IDENTITY */
+	
+	
+	if (pid == 0)
+	{
+		std::string randomnick = random_string();
+		std::cout << "hi my name is " << randomnick << std::endl;
+		std::stringstream ss;
+		ss << randomnick;
 
-	send_cmd(fd, "PASS pass\r\n");
-	send_cmd(fd, "NICK enchevrax\r\n");
-	send_cmd(fd, "USER enchevrax 0 * :RealName\r\n");
+		send_cmd(fd, "PASS pass\r\n");
+		send_cmd(fd, "NICK " + ss.str() + "\r\n");
+		usleep(100000);
+		send_cmd(fd, "USER " + ss.str() + " 0 * :RealName\r\n");
+		usleep(500000);
+		send_cmd(fd, "JOIN #rallypoint\r\n");
+		usleep(100000);
+		send_cmd(fd, "PRIVMSG #rallypoint :hello from " + ss.str() + "\r\n");
+		usleep(100000);
 
-	const std::vector<std::string> plabels[] = {
-		{},
-		{"Target", "Message"},
-		{"Channel"},
-		{"Channel"},
-		{"New nick"},
-		{"Quit message"},
-		{"Commande brute"},
-	};
+		while (random_bool(0.999))
+		{
+			if (random_bool(0.25))
+			{
+				std::string randomChannel = random_string();
+				std::stringstream channelStream;
+				channelStream << "#" << randomChannel;
+				send_cmd(fd, "JOIN " + channelStream.str() + "\r\n");
+				usleep(100000);
+			}
 
-	enum { MENU, PARAM } mode = MENU;
-	int choice = 0;
-	std::vector<std::string> params;
-	std::string buf;
+			if (!channels.empty() && random_bool(0.25))
+			{
+				int randomIndex = rand() % channels.size();
+				send_cmd(fd, "PART " + channels[randomIndex] + "\r\n");
+				channels.erase(channels.begin() + randomIndex);
+				usleep(100000);
+			}
+			if (!channels.empty() && random_bool(0.6))
+			{
+				int randomIndex = rand() % channels.size();
+				send_cmd(fd, "PRIVMSG " + channels[randomIndex] + " :hello from " + ss.str() + "\r\n");
+				usleep(100000);
+			}
+			if (!channels.empty() && random_bool(0.2))
+			{
+				int randomIndex = rand() % channels.size();
+				send_cmd(fd, "TOPIC " + channels[randomIndex] + " :New topic from " + ss.str() + "\r\n");
+				usleep(100000);
+			}
+			else
+			{
+				send_cmd(fd, "PRIVMSG #rallypoint :hello from " + ss.str() + "\r\n");
+				usleep(100000);
+			}
+		}
+		send_cmd(fd, "QUIT :leaving\r\n");
+		usleep(100000);
+		return 0;
+	}
+	std::cout << "Process " << getpid() << " exiting." << std::endl;
+	while (wait(NULL) > 0)
+		std::cout << "child exited" << std::endl;
+	return (0);
 
-	char net[512];
+
+	
 	int nfds = std::max(fd, STDIN_FILENO) + 1;
 
 	while (true) {
@@ -116,58 +173,8 @@ int main(int argc, char *argv[])
 
 		if (select(nfds, &rfds, NULL, NULL, NULL) < 0)
 			break;
-
-		if (FD_ISSET(fd, &rfds)) {
-			int n = recv(fd, net, sizeof(net) - 1, 0);
-			if (n <= 0) break;
-			net[n] = '\0';
-			msg_push(net);
 		}
 
-		if (FD_ISSET(STDIN_FILENO, &rfds)) {
-			int ch = wgetch(g_inp);
-			if (ch != ERR) {
-				if (ch == KEY_BACKSPACE || ch == 127 || ch == '\b') {
-					if (!buf.empty()) buf.pop_back();
-				} else if (ch == '\n' || ch == '\r' || ch == KEY_ENTER) {
-					if (mode == MENU) {
-						if (buf.size() == 1 && buf[0] >= '1' && buf[0] <= '6') {
-							choice = buf[0] - '0';
-							mode = PARAM;
-							params.clear();
-						}
-					} else {
-						params.push_back(buf);
-						if (params.size() == plabels[choice].size()) {
-							std::string cmd;
-							switch (choice) {
-								case 1: cmd = "PRIVMSG " + params[0] + " :" + params[1]; break;
-								case 2: cmd = "JOIN " + params[0]; break;
-								case 3: cmd = "PART " + params[0]; break;
-								case 4: cmd = "NICK " + params[0]; break;
-								case 5: cmd = "QUIT :" + params[0]; break;
-								case 6: cmd = params[0]; break;
-							}
-							send_cmd(fd, cmd + "\r\n");
-							mode = MENU;
-							choice = 0;
-							params.clear();
-						}
-					}
-					buf.clear();
-				} else if (ch >= 32 && ch < 127) {
-					buf += (char)ch;
-				}
-			}
-		}
-
-		std::string label = (mode == MENU)
-			? "Choix (1-6) :"
-			: plabels[choice][params.size()] + " :";
-		inp_draw(label, buf);
-	}
-
-	endwin();
 	close(fd);
 	return 0;
 }
