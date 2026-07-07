@@ -45,10 +45,10 @@ std::string random_string()
 {
 	int urandom = open("/dev/urandom", O_RDONLY);
 	char randomstr[9];
-	read(urandom, randomstr, 4);
+	read(urandom, randomstr, 8);
 
-	while (!is_alphabetic(randomstr) || strlen(randomstr) < 4)
-		read(urandom, randomstr, 4);
+	while (!is_alphabetic(randomstr) || strlen(randomstr) < 8)
+		read(urandom, randomstr, 8);
 
 	randomstr[8] = '\0';
 	close(urandom);
@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
 	}
 
 int pid = getpid();
-	for (int i = 0; i < 5; ++i)
+	for (int i = 0; i < 10; ++i)
 		if (pid != 0)
 		{
 			usleep(rand() % 1000000);
