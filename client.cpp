@@ -45,10 +45,10 @@ std::string random_string()
 {
 	int urandom = open("/dev/urandom", O_RDONLY);
 	char randomstr[9];
-	read(urandom, randomstr, 8);
+	read(urandom, randomstr, 4);
 
-	while (!is_alphabetic(randomstr) || strlen(randomstr) < 8)
-		read(urandom, randomstr, 8);
+	while (!is_alphabetic(randomstr) || strlen(randomstr) < 4)
+		read(urandom, randomstr, 4);
 
 	randomstr[8] = '\0';
 	close(urandom);
@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
 	}
 
 int pid = getpid();
-	for (int i = 0; i < 10; ++i)
+	for (int i = 0; i < 5; ++i)
 		if (pid != 0)
 		{
 			usleep(rand() % 1000000);
@@ -154,27 +154,10 @@ int pid = getpid();
 		}
 		send_cmd(fd, "QUIT :leaving\r\n");
 		usleep(100000);
-		return 0;
 	}
 	std::cout << "Process " << getpid() << " exiting." << std::endl;
 	while (wait(NULL) > 0)
 		std::cout << "child exited" << std::endl;
 	return (0);
 
-
-	
-	int nfds = std::max(fd, STDIN_FILENO) + 1;
-
-	while (true) {
-		fd_set rfds;
-		FD_ZERO(&rfds);
-		FD_SET(fd, &rfds);
-		FD_SET(STDIN_FILENO, &rfds);
-
-		if (select(nfds, &rfds, NULL, NULL, NULL) < 0)
-			break;
-		}
-
-	close(fd);
-	return 0;
 }
